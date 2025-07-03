@@ -2,7 +2,7 @@
 # start.sh
 
 # Start Flask in background
- cd my-app/server/
+cd my-app/server/
 source venv/bin/activate
 python app.py &
 

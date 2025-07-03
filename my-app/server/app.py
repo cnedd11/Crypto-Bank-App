@@ -4,6 +4,8 @@ from flask import Flask, jsonify, request, session
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'replace_with_strong_secret'
@@ -11,6 +13,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crypto_bank.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 CORS(app, supports_credentials=True)
 
+# Enforce foreign key constraints in SQLite
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 db = SQLAlchemy(app)
 
 # --- Models ---
