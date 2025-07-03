@@ -1,3 +1,4 @@
+// client/src/components/CryptoWallets.js
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -72,8 +73,11 @@ export default function CryptoWallets() {
     setForm({ wallet_name: w.wallet_name, balance: w.balance.toString() });
   };
 
-  // delete wallet (admin only)
+  // delete wallet (admin only) with confirmation
   const deleteWallet = async id => {
+    if (!window.confirm('Are you sure you want to delete this wallet?')) {
+      return;
+    }
     try {
       await axios.delete(`/api/wallets/${id}`, { withCredentials: true });
       setWallets(ws => ws.filter(w => w.id !== id));
@@ -95,7 +99,11 @@ export default function CryptoWallets() {
               <button
                 key={c.id}
                 className={`btn btn-outline-primary me-2 mb-2${selectedCust?.id===c.id?' active':''}`}
-                onClick={() => { setSelected(c); setEditing(null); setForm({wallet_name:'',balance:''}); }}
+                onClick={() => { 
+                  setSelected(c); 
+                  setEditing(null); 
+                  setForm({ wallet_name: '', balance: '' }); 
+                }}
               >
                 {c.name}
               </button>
@@ -107,16 +115,25 @@ export default function CryptoWallets() {
               <h5>Wallets for {selectedCust.name}:</h5>
               <ul className="list-group mb-4">
                 {wallets.map(w => (
-                  <li key={w.id} className="list-group-item d-flex justify-content-between align-items-center">
+                  <li 
+                    key={w.id} 
+                    className="list-group-item d-flex justify-content-between align-items-center"
+                  >
                     <div>
                       {w.wallet_name} — {w.balance.toFixed(4)}
                     </div>
                     <div>
-                      <button className="btn btn-sm btn-outline-secondary me-2" onClick={() => startEdit(w)}>
+                      <button 
+                        className="btn btn-sm btn-outline-secondary me-2" 
+                        onClick={() => startEdit(w)}
+                      >
                         Edit
                       </button>
-                      {userRole==='admin' && (
-                        <button className="btn btn-sm btn-outline-danger" onClick={() => deleteWallet(w.id)}>
+                      {userRole === 'admin' && (
+                        <button 
+                          className="btn btn-sm btn-outline-danger" 
+                          onClick={() => deleteWallet(w.id)}
+                        >
                           Delete
                         </button>
                       )}
@@ -128,9 +145,9 @@ export default function CryptoWallets() {
                 )}
               </ul>
 
-              {/* form */}
+              {/* add/edit form */}
               <form onSubmit={onSubmit}>
-                <h6>{editing?'Edit Wallet':'Add Wallet'}</h6>
+                <h6>{editing ? 'Edit Wallet' : 'Add Wallet'}</h6>
                 <input
                   name="wallet_name"
                   type="text"
@@ -151,7 +168,7 @@ export default function CryptoWallets() {
                   required
                 />
                 <button type="submit" className="btn btn-success w-100">
-                  {editing?'Save Changes':'Add Wallet'}
+                  {editing ? 'Save Changes' : 'Add Wallet'}
                 </button>
               </form>
             </>

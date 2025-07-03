@@ -1,3 +1,4 @@
+// client/src/components/Customers.js
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -39,8 +40,11 @@ export default function Customers() {
     }
   };
 
-  // Delete customer (admin only)
+  // Delete customer (admin only), with confirmation
   const handleDelete = async id => {
+    if (!window.confirm('Are you sure you want to delete this customer?')) {
+      return;
+    }
     try {
       await axios.delete(`/api/customers/${id}`, { withCredentials: true });
       setCustomers(prev => prev.filter(c => c.id !== id));
@@ -63,18 +67,26 @@ export default function Customers() {
 
           <form onSubmit={handleAdd} className="mb-4">
             <input
-              type="text" className="form-control mb-2"
-              placeholder="Name" value={name}
-              onChange={e => setName(e.target.value)} required
+              type="text"
+              className="form-control mb-2"
+              placeholder="Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              required
             />
             <input
-              type="email" className="form-control mb-2"
-              placeholder="Email" value={email}
-              onChange={e => setEmail(e.target.value)} required
+              type="email"
+              className="form-control mb-2"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
             />
             <input
-              type="tel" className="form-control mb-3"
-              placeholder="Phone (optional)" value={phone}
+              type="tel"
+              className="form-control mb-3"
+              placeholder="Phone (optional)"
+              value={phone}
               onChange={e => setPhone(e.target.value)}
             />
             <button type="submit" className="btn btn-success w-100">
@@ -87,10 +99,12 @@ export default function Customers() {
               <li key={c.id} className="list-group-item d-flex justify-content-between align-items-center">
                 <div>
                   <strong>{c.name}</strong><br/>
-                  <small>{c.email}{c.phone ? ` • ${c.phone}` : ''}</small>
+                  <small>
+                    {c.email}
+                    {c.phone ? ` • ${c.phone}` : ''}
+                  </small>
                 </div>
 
-                {/* Only show Delete if role === 'admin' */}
                 {userRole === 'admin' && (
                   <button
                     className="btn btn-sm btn-outline-danger"
