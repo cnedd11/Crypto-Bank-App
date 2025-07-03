@@ -6,7 +6,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import Navbar from './component/Navbar';
 import Login from './component/Login';
 import Register from './component/Register';
+import Customers from './component/Customers';
 import Footer from './component/Footer';
+import PrivateRoute from './component/PrivateRoute';
 import './css/App.css';
 
 const container = document.getElementById('root');
@@ -17,10 +19,17 @@ root.render(
       <Navbar />
 
       <main className="app-content container my-4">
+
         <Routes>
-          <Route path="/"        element={<App />}      />
-          <Route path="/login"   element={<Login />}    />
+          <Route path="/" element={<App />} />
+          <Route path="/login"  element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* All routes under here require auth */}
+          <Route element={<PrivateRoute />}>
+            <Route path="/customers" element={<Customers />} />
+            {/* add more protected routes */}
+          </Route>
         </Routes>
       </main>
 

@@ -6,9 +6,10 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './../css/LoginRegister.css';
 
 export default function Register() {
-  const [email, setEmail]       = useState('');
+  const [email, setEmail]     = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
+  const [role, setRole]       = useState('user');
+  const [error, setError]     = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async e => {
@@ -16,7 +17,7 @@ export default function Register() {
     try {
       await axios.post(
         '/api/register',
-        { email, password },
+        { email, password, role },
         { withCredentials: true }
       );
       navigate('/login');
@@ -38,6 +39,7 @@ export default function Register() {
           )}
 
           <form onSubmit={handleSubmit}>
+            {/* Email */}
             <div className="mb-3">
               <label htmlFor="email" className="form-label">
                 Email
@@ -53,7 +55,8 @@ export default function Register() {
               />
             </div>
 
-            <div className="mb-4">
+            {/* Password */}
+            <div className="mb-3">
               <label htmlFor="password" className="form-label">
                 Password
               </label>
@@ -66,6 +69,22 @@ export default function Register() {
                 onChange={e => setPassword(e.target.value)}
                 required
               />
+            </div>
+
+            {/* Role Selector */}
+            <div className="mb-4">
+              <label htmlFor="role" className="form-label">
+                Role
+              </label>
+              <select
+                id="role"
+                className="form-select"
+                value={role}
+                onChange={e => setRole(e.target.value)}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
 
             <button type="submit" className="btn btn-primary w-100">

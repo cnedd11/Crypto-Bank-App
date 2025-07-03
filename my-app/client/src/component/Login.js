@@ -20,6 +20,7 @@ export default function Login() {
         { withCredentials: true }
       );
       navigate('/');
+      window.location.reload();
     } catch (err) {
       setError(err.response?.data.error || 'Login failed');
     }
