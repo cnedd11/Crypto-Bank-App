@@ -1,0 +1,25 @@
+.footer {
+  background-color: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+}
+
+.footer-link {
+  color: #6c757d;
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: #343a40;
+}
+
+.footer-social a {
+  display: inline-block;
+  margin-left: 0.5rem;
+  color: #6c757d;
+  text-decoration: none;
+}
+
+.footer-social a:hover {
+  color: #343a40;
+  text-decoration: underline;
+}
