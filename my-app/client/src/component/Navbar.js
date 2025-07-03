@@ -57,6 +57,11 @@ export default function Navbar() {
                     Customers
                   </NavLink>
                 </li>
+                <li className="nav-item">
+                    <NavLink className="nav-link" to="/wallets">
+                        Wallets
+                    </NavLink>
+                </li>
                 {/* Greeting + role */}
                 <li className="nav-item mx-3">
                   <span className="navbar-text">

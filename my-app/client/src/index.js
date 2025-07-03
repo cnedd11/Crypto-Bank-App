@@ -9,6 +9,7 @@ import Register from './component/Register';
 import Customers from './component/Customers';
 import Footer from './component/Footer';
 import PrivateRoute from './component/PrivateRoute';
+import CryptoWallets from './component/CryptoWallets';
 import './css/App.css';
 
 const container = document.getElementById('root');
@@ -28,6 +29,7 @@ root.render(
           {/* All routes under here require auth */}
           <Route element={<PrivateRoute />}>
             <Route path="/customers" element={<Customers />} />
+            <Route path="/wallets"   element={<CryptoWallets />} />
             {/* add more protected routes */}
           </Route>
         </Routes>
