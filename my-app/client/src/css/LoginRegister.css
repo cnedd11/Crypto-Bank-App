@@ -1,0 +1,42 @@
+/* src/Login.css */
+.login-wrapper {
+  min-height: 80vh;
+  background-color: #f0f2f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-card {
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+/* client/src/LoginRegister.css */
+
+.auth-wrapper {
+  min-height: 80vh;
+  background-color: #f8f9fa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.auth-card {
+  max-width: 400px;
+  width: 100%;
+}
+
+.auth-card .card-body {
+  padding: 2rem;
+}
+
+.auth-title {
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.auth-error {
+  margin-bottom: 1rem;
+}
