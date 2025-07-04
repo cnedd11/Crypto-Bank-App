@@ -6,21 +6,31 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './../css/LoginRegister.css';
 
 export default function Login() {
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
+  const [error, setError]         = useState('');
+  const [success, setSuccess]     = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async e => {
     e.preventDefault();
+    setError('');
     try {
       await axios.post(
         '/api/login',
         { email, password },
         { withCredentials: true }
       );
-      navigate('/');
-      window.location.reload();
+
+      // show success notification
+      setSuccess('Logged in successfully! Redirecting…');
+
+      // short delay so user sees notification
+      setTimeout(() => {
+        navigate('/');
+        window.location.reload();
+      }, 1000);
+
     } catch (err) {
       setError(err.response?.data.error || 'Login failed');
     }
@@ -35,6 +45,12 @@ export default function Login() {
           {error && (
             <div className="alert alert-danger auth-error" role="alert">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="alert alert-success" role="alert">
+              {success}
             </div>
           )}
 
