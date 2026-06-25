@@ -329,3 +329,56 @@ def test_wallets_crud(client):
     rv = client.get(f"/api/customers/{cust_id}/wallets")
     assert rv.status_code == 200
     assert rv.json == []
+
+
+# ---------------------------------------------------------------------------
+# Email format validation
+# ---------------------------------------------------------------------------
+def test_register_invalid_email_format(client):
+    """Server must reject emails that do not match the expected format (returns 422)."""
+    for bad_email in ("notanemail", "missing@", "@nodomain.com", "spaces in@email.com"):
+        rv = client.post("/api/register", json={"email": bad_email, "password": STRONG_PW})
+        assert rv.status_code == 422, f"Expected 422 for invalid email: {bad_email}"
+        assert b"Invalid email format" in rv.data
+
+
+def test_register_field_length_limits(client):
+    """Email or password exceeding maximum length must be rejected with 422."""
+    long_email = "a" * 115 + "@b.com"  # 121 characters total, exceeds 120-char limit
+    rv = client.post("/api/register", json={"email": long_email, "password": STRONG_PW})
+    assert rv.status_code == 422
+    assert b"at most 120 characters" in rv.data
+
+    long_pw = "Test@1234" + "x" * 200  # > 128 characters
+    rv = client.post("/api/register", json={"email": "new@b.com", "password": long_pw})
+    assert rv.status_code == 422
+    assert b"at most 128 characters" in rv.data
+
+
+def test_customer_invalid_email_format(client):
+    """Customer email must pass format validation; invalid formats return 422."""
+    register(client, "u@u.com")
+    login(client, "u@u.com")
+    rv = client.post("/api/customers", json={"name": "Test", "email": "bademail"})
+    assert rv.status_code == 422
+    assert b"Invalid email format" in rv.data
+
+
+def test_customer_invalid_phone_format(client):
+    """Customer phone with disallowed characters must be rejected with 422."""
+    register(client, "ph@test.com")
+    login(client, "ph@test.com")
+    rv = client.post("/api/customers", json={
+        "name": "Test", "email": "test@test.com", "phone": "abc!!!###"
+    })
+    assert rv.status_code == 422
+    assert b"Invalid phone format" in rv.data
+
+
+def test_global_404_handler(client):
+    """Requests to unknown API routes must return a JSON 404 error response."""
+    rv = client.get("/api/nonexistent-endpoint-xyz")
+    assert rv.status_code == 404
+    data = rv.get_json()
+    assert data is not None, "Response must be valid JSON"
+    assert "error" in data

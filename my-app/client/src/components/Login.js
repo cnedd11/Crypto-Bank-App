@@ -15,6 +15,13 @@ export default function Login() {
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
+
+    // Client-side email format check before calling the server.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     try {
       await axios.post(
         '/api/login',
@@ -24,12 +31,8 @@ export default function Login() {
 
       // show success notification
       setSuccess('Logged in successfully! Redirecting…');
-
-      // short delay so user sees notification
-      setTimeout(() => {
-        navigate('/');
-        window.location.reload();
-      }, 1000);
+      navigate('/');
+      window.location.reload();
 
     } catch (err) {
       setError(err.response?.data.error || 'Login failed');

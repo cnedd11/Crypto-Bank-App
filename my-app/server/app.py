@@ -104,6 +104,16 @@ _PASSWORD_RE = re.compile(
     r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$'
 )
 
+# Email format: standard printable characters before @, domain label(s), and
+# a TLD of at least 2 letters.  Single quotes and other special chars that
+# appear legitimately in names are handled by the ORM's parameterised queries.
+_EMAIL_RE = re.compile(
+    r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$'
+)
+
+# Phone: optional field; allows digits, spaces, +, -, (, ) up to 30 chars.
+_PHONE_RE = re.compile(r'^[\d\s+\-(). ]{1,30}$')
+
 
 def _contains_sql_injection(value: str) -> bool:
     """Return True if value matches known SQL injection patterns."""
@@ -176,6 +186,17 @@ def register():
     if _contains_sql_injection(email):
         logger.warning("SQL injection pattern detected in registration email")
         return jsonify({'error': 'Invalid input'}), 400
+
+    # Validate email format.
+    if not _EMAIL_RE.match(email):
+        logger.warning("Invalid email format in registration attempt: %s", request.path)
+        return jsonify({'error': 'Invalid email format'}), 422
+
+    # Field length limits prevent excessively large inputs.
+    if len(email) > 120:
+        return jsonify({'error': 'Email must be at most 120 characters'}), 422
+    if len(password) > 128:
+        return jsonify({'error': 'Password must be at most 128 characters'}), 422
 
     # OWASP A07: Validate password strength on the server — the frontend check
     # can be bypassed, so server-side enforcement is the authoritative gate.
@@ -310,6 +331,27 @@ def add_customer():
         )
         return jsonify({'error': 'Invalid input'}), 400
 
+    # Validate email format.
+    if not _EMAIL_RE.match(email):
+        logger.warning(
+            "Invalid customer email format from user_id=%s", session.get('user_id')
+        )
+        return jsonify({'error': 'Invalid email format'}), 422
+
+    # Field length limits.
+    if len(name) > 120:
+        return jsonify({'error': 'Name must be at most 120 characters'}), 422
+    if len(email) > 120:
+        return jsonify({'error': 'Email must be at most 120 characters'}), 422
+
+    # Validate phone format when provided.
+    if phone and not _PHONE_RE.match(phone):
+        logger.warning(
+            "Invalid phone format in customer input from user_id=%s",
+            session.get('user_id')
+        )
+        return jsonify({'error': 'Invalid phone format (digits, spaces, + - ( ) only)'}), 422
+
     if Customer.query.filter_by(email=email).first():
         return jsonify({'error': 'Customer email already in use'}), 400
 
@@ -371,6 +413,10 @@ def add_wallet():
         )
         return jsonify({'error': 'Invalid input'}), 400
 
+    # Length limit for wallet name.
+    if len(wallet_name) > 100:
+        return jsonify({'error': 'Wallet name must be at most 100 characters'}), 422
+
     cust = Customer.query.get(cust_id)
     if not cust:
         return jsonify({'error': 'Customer not found'}), 404
@@ -408,6 +454,10 @@ def update_wallet(id):
         )
         return jsonify({'error': 'Invalid input'}), 400
 
+    # Length limit for wallet name.
+    if len(new_name) > 100:
+        return jsonify({'error': 'Wallet name must be at most 100 characters'}), 422
+
     new_balance, err = _validate_balance(data.get('balance'), fallback=wallet.balance)
     if err:
         return jsonify({'error': err}), 400
@@ -435,6 +485,39 @@ def delete_wallet(id):
     db.session.commit()
     logger.info("Admin (user_id=%s) deleted wallet id=%d", session.get('user_id'), id)
     return jsonify({'message': 'Wallet deleted'}), 200
+
+
+# ---------------------------------------------------------------------------
+# Global error handlers — OWASP A07: return safe JSON error messages with no
+# stack traces or internal details that could aid an attacker.
+# ---------------------------------------------------------------------------
+@app.errorhandler(400)
+def handle_400(e):
+    logger.warning("400 Bad Request at %s: %s", request.path, str(e))
+    return jsonify({'error': 'Bad request'}), 400
+
+
+@app.errorhandler(401)
+def handle_401(e):
+    logger.warning("401 Unauthorized at %s", request.path)
+    return jsonify({'error': 'Unauthorized'}), 401
+
+
+@app.errorhandler(403)
+def handle_403(e):
+    logger.warning("403 Forbidden at %s", request.path)
+    return jsonify({'error': 'Forbidden'}), 403
+
+
+@app.errorhandler(404)
+def handle_404(e):
+    return jsonify({'error': 'Not found'}), 404
+
+
+@app.errorhandler(500)
+def handle_500(e):
+    logger.error("500 Internal Server Error at %s: %s", request.path, str(e))
+    return jsonify({'error': 'Internal server error'}), 500
 
 
 if __name__ == '__main__':

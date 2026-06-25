@@ -123,6 +123,13 @@ describe('Customers component', () => {
       response: { data: { error: 'Add failed' } }
     });
 
+    // Fill valid data so client-side validation passes and the server call is made.
+    fireEvent.change(screen.getByPlaceholderText('Name'), {
+      target: { value: 'Test User' }
+    });
+    fireEvent.change(screen.getByPlaceholderText('Email'), {
+      target: { value: 'testuser@mail.com' }
+    });
     fireEvent.click(screen.getByRole('button', { name: /Add Customer/i }));
 
     expect(
