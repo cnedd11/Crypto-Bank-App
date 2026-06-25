@@ -1,0 +1,58 @@
+# Render Blueprint — Crypto Bank App
+# ─────────────────────────────────────────────────────────────────────────────
+# This file provisions both services on Render in a single deploy.
+# Import it at https://dashboard.render.com/select-repo and Render will create
+# the backend web service and the frontend static site automatically.
+#
+# After the first successful deploy:
+#   1. Copy the backend URL (e.g. https://crypto-bank-api.onrender.com) and
+#      set REACT_APP_API_URL on the frontend service in the Render dashboard.
+#   2. Copy the frontend URL and set FRONTEND_URL on the backend service.
+#   3. Trigger a manual re-deploy of both services so the new values take effect.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Backend: Flask REST API served by Gunicorn ───────────────────────────
+  - type: web
+    name: crypto-bank-api
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Gunicorn binds to the port Render injects via $PORT.
+    # run:app references the `app` object created in backend/run.py.
+    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT
+    autoDeploy: true
+    envVars:
+      # A cryptographically random secret is generated once and stored by Render.
+      - key: SECRET_KEY
+        generateValue: true
+      # SQLite persists in the service's ephemeral filesystem — suitable for a
+      # demo/academic project.  Swap for a Render PostgreSQL URL in production.
+      - key: DATABASE_URL
+        value: sqlite:///crypto_bank.db
+      - key: FLASK_DEBUG
+        value: 'false'
+      # Set to the frontend static-site URL after first deploy (see note above).
+      # Example: https://crypto-bank-frontend.onrender.com
+      - key: FRONTEND_URL
+        sync: false
+
+  # ── Frontend: React (Create React App) static site ──────────────────────
+  - type: web
+    name: crypto-bank-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    # CRA outputs production assets to the `build/` directory.
+    staticPublishPath: ./build
+    autoDeploy: true
+    envVars:
+      # Set to the backend web-service URL after first deploy (see note above).
+      # Example: https://crypto-bank-api.onrender.com
+      - key: REACT_APP_API_URL
+        sync: false
+    routes:
+      # Send all unmatched paths to index.html so React Router handles them.
+      - type: rewrite
+        source: /*
+        destination: /index.html

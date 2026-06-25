@@ -1,0 +1,5 @@
+# Exclude test files from ESLint — test utilities follow different
+# patterns (testing-library conventions) that are linted separately.
+src/**/__tests__/**
+src/**/*.spec.js
+src/**/*.test.js

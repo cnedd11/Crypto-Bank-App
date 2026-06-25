@@ -1,0 +1,17 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install dependencies first for better layer caching
+COPY frontend/package*.json ./
+RUN npm ci --legacy-peer-deps
+
+# Copy application source and build
+COPY frontend/ .
+RUN npm run build
+
+EXPOSE 3000
+
+# Serve the production build with a lightweight static server
+RUN npm install -g serve
+CMD ["serve", "-s", "build", "-l", "3000"]
