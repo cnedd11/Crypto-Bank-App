@@ -60,7 +60,8 @@ describe('Register component', () => {
     // password type is hidden initially
     expect(screen.getByPlaceholderText('••••••••')).toHaveAttribute('type', 'password');
     expect(screen.getByRole('button', { name: /Show/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Role/i)).toHaveValue('user');
+    // OWASP A01: role selector has been removed — users cannot self-assign roles
+    expect(screen.queryByLabelText(/Role/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sign Up/i })).toBeInTheDocument();
     // Login link
     const loginLink = screen.getByText(/Login/i);
@@ -84,21 +85,21 @@ describe('Register component', () => {
     expect(toggleBtn).toHaveTextContent('Show');
   });
 
-  it('validates password complexity before submit', async () => {
+  it('validates password complexity before submit (min 8 chars)', async () => {
     render(<Register />, { wrapper: MemoryRouter });
 
     fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
       target: { value: 'user@test.com' }
     });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), {
-      target: { value: 'abc' } // invalid
+      target: { value: 'abc' } // invalid — too short, missing complexity
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Sign Up/i }));
-    expect(await screen.findByText(/Password must be at least 6 characters/))
+    expect(await screen.findByText(/Password must be at least 8 characters/))
       .toBeInTheDocument();
 
-    // axios not called
+    // axios not called — blocked client-side
     expect(axios.post).not.toHaveBeenCalled();
   });
 
@@ -113,25 +114,23 @@ describe('Register component', () => {
       target: { value: 'user@test.com' }
     });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), {
-      target: { value: 'Abc123!' }
-    });
-    fireEvent.change(screen.getByLabelText(/Role/i), {
-      target: { value: 'admin' }
+      target: { value: 'Test@1234' }  // meets 8-char complexity rule
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Sign Up/i }));
 
     await waitFor(() => {
+      // OWASP A01: role is NOT sent — the server always assigns 'user'
       expect(axios.post).toHaveBeenNthCalledWith(
         1,
         '/api/register',
-        { email: 'user@test.com', password: 'Abc123!', role: 'admin' },
+        { email: 'user@test.com', password: 'Test@1234' },
         { withCredentials: true }
       );
       expect(axios.post).toHaveBeenNthCalledWith(
         2,
         '/api/login',
-        { email: 'user@test.com', password: 'Abc123!' },
+        { email: 'user@test.com', password: 'Test@1234' },
         { withCredentials: true }
       );
     });
@@ -151,7 +150,7 @@ describe('Register component', () => {
       target: { value: 'dup@test.com' }
     });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), {
-      target: { value: 'Abc123!' }
+      target: { value: 'Test@1234' }
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Sign Up/i }));
@@ -168,7 +167,7 @@ describe('Register component', () => {
       target: { value: 'x@test.com' }
     });
     fireEvent.change(screen.getByPlaceholderText('••••••••'), {
-      target: { value: 'Abc123!' }
+      target: { value: 'Test@1234' }
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Sign Up/i }));
