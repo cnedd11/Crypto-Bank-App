@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './../css/LoginRegister.css';
+import { EMAIL_RE } from '../utils/validation';
 
 export default function Login() {
   const [email, setEmail]         = useState('');
@@ -15,6 +16,13 @@ export default function Login() {
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
+
+    // Client-side email format check before calling the server.
+    if (!EMAIL_RE.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     try {
       await axios.post(
         '/api/login',
@@ -24,12 +32,8 @@ export default function Login() {
 
       // show success notification
       setSuccess('Logged in successfully! Redirecting…');
-
-      // short delay so user sees notification
-      setTimeout(() => {
-        navigate('/');
-        window.location.reload();
-      }, 1000);
+      navigate('/');
+      window.location.reload();
 
     } catch (err) {
       setError(err.response?.data.error || 'Login failed');

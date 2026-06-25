@@ -1,6 +1,7 @@
 // client/src/components/Customers.js
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { EMAIL_RE, PHONE_RE } from '../utils/validation';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -8,6 +9,7 @@ export default function Customers() {
   const [email, setEmail]         = useState('');
   const [phone, setPhone]         = useState('');
   const [error, setError]         = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [userRole, setUserRole]   = useState(null);
 
   // 1) Fetch current user role
@@ -24,9 +26,45 @@ export default function Customers() {
       .catch(() => setError('Failed to load customers'));
   }, []);
 
+  // Reusable handler: update field value and clear its per-field error.
+  const handleFieldChange = (setter, field) => e => {
+    setter(e.target.value);
+    setFieldErrors(f => ({ ...f, [field]: '' }));
+  };
+
+  // Client-side validation — returns an object of field → message.
+  const validateCustomer = () => {
+    const errors = {};
+    if (!name.trim()) {
+      errors.name = 'Name is required';
+    } else if (name.length > 120) {
+      errors.name = 'Name must be at most 120 characters';
+    }
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!EMAIL_RE.test(email)) {
+      errors.email = 'Invalid email format';
+    } else if (email.length > 120) {
+      errors.email = 'Email must be at most 120 characters';
+    }
+    if (phone && !PHONE_RE.test(phone)) {
+      errors.phone = 'Phone: digits, spaces, + - ( ) only (max 30 chars)';
+    }
+    return errors;
+  };
+
   // Add customer
   const handleAdd = async e => {
     e.preventDefault();
+    setError('');
+
+    const errors = validateCustomer();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+
     try {
       const res = await axios.post(
         '/api/customers',
@@ -34,7 +72,7 @@ export default function Customers() {
         { withCredentials: true }
       );
       setCustomers(prev => [...prev, res.data]);
-      setName(''); setEmail(''); setPhone(''); setError('');
+      setName(''); setEmail(''); setPhone('');
     } catch (err) {
       setError(err.response?.data.error || 'Add customer failed');
     }
@@ -66,29 +104,44 @@ export default function Customers() {
           )}
 
           <form onSubmit={handleAdd} className="mb-4">
-            <input
-              type="text"
-              className="form-control mb-2"
-              placeholder="Name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-            />
-            <input
-              type="email"
-              className="form-control mb-2"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-            <input
-              type="tel"
-              className="form-control mb-3"
-              placeholder="Phone (optional)"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-            />
+            <div className="mb-2">
+              <input
+                type="text"
+                className={`form-control ${fieldErrors.name ? 'is-invalid' : ''}`}
+                placeholder="Name"
+                value={name}
+                onChange={handleFieldChange(setName, 'name')}
+                required
+              />
+              {fieldErrors.name && (
+                <div className="invalid-feedback">{fieldErrors.name}</div>
+              )}
+            </div>
+            <div className="mb-2">
+              <input
+                type="email"
+                className={`form-control ${fieldErrors.email ? 'is-invalid' : ''}`}
+                placeholder="Email"
+                value={email}
+                onChange={handleFieldChange(setEmail, 'email')}
+                required
+              />
+              {fieldErrors.email && (
+                <div className="invalid-feedback">{fieldErrors.email}</div>
+              )}
+            </div>
+            <div className="mb-3">
+              <input
+                type="tel"
+                className={`form-control ${fieldErrors.phone ? 'is-invalid' : ''}`}
+                placeholder="Phone (optional)"
+                value={phone}
+                onChange={handleFieldChange(setPhone, 'phone')}
+              />
+              {fieldErrors.phone && (
+                <div className="invalid-feedback">{fieldErrors.phone}</div>
+              )}
+            </div>
             <button type="submit" className="btn btn-success w-100">
               Add Customer
             </button>

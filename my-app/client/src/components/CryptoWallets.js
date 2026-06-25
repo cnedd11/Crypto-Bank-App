@@ -10,6 +10,7 @@ export default function CryptoWallets() {
   const [editing, setEditing]         = useState(null);
   const [userRole, setUserRole]       = useState(null);
   const [error, setError]             = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // fetch user role
   useEffect(() => {
@@ -33,15 +34,44 @@ export default function CryptoWallets() {
       .catch(() => setError('Failed to load wallets'));
   }, [selectedCust]);
 
-  // handle form change
+  // handle form change — clear the per-field error as the user types
   const onChange = e => {
     const { name, value } = e.target;
     setForm(f => ({ ...f, [name]: value }));
+    if (fieldErrors[name]) {
+      setFieldErrors(f => ({ ...f, [name]: '' }));
+    }
+  };
+
+  // Client-side validation — returns an object of field → message.
+  const validateWallet = () => {
+    const errors = {};
+    if (!form.wallet_name.trim()) {
+      errors.wallet_name = 'Wallet name is required';
+    } else if (form.wallet_name.length > 100) {
+      errors.wallet_name = 'Wallet name must be at most 100 characters';
+    }
+    const bal = parseFloat(form.balance);
+    if (form.balance === '' || isNaN(bal)) {
+      errors.balance = 'Balance is required';
+    } else if (bal < 0) {
+      errors.balance = 'Balance cannot be negative';
+    }
+    return errors;
   };
 
   // add or edit wallet
   const onSubmit = async e => {
     e.preventDefault();
+    setError('');
+
+    const errors = validateWallet();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+
     try {
       let res;
       if (editing) {
@@ -61,7 +91,6 @@ export default function CryptoWallets() {
       }
       setEditing(null);
       setForm({ wallet_name: '', balance: '' });
-      setError('');
     } catch (err) {
       setError(err.response?.data.error || 'Operation failed');
     }
@@ -71,6 +100,7 @@ export default function CryptoWallets() {
   const startEdit = w => {
     setEditing(w);
     setForm({ wallet_name: w.wallet_name, balance: w.balance.toString() });
+    setFieldErrors({});
   };
 
   // delete wallet (admin only) with confirmation
@@ -103,6 +133,7 @@ export default function CryptoWallets() {
                   setSelected(c); 
                   setEditing(null); 
                   setForm({ wallet_name: '', balance: '' }); 
+                  setFieldErrors({});
                 }}
               >
                 {c.name}
@@ -148,25 +179,35 @@ export default function CryptoWallets() {
               {/* add/edit form */}
               <form onSubmit={onSubmit}>
                 <h6>{editing ? 'Edit Wallet' : 'Add Wallet'}</h6>
-                <input
-                  name="wallet_name"
-                  type="text"
-                  className="form-control mb-2"
-                  placeholder="Wallet Name"
-                  value={form.wallet_name}
-                  onChange={onChange}
-                  required
-                />
-                <input
-                  name="balance"
-                  type="number"
-                  step="0.0001"
-                  className="form-control mb-3"
-                  placeholder="Balance"
-                  value={form.balance}
-                  onChange={onChange}
-                  required
-                />
+                <div className="mb-2">
+                  <input
+                    name="wallet_name"
+                    type="text"
+                    className={`form-control ${fieldErrors.wallet_name ? 'is-invalid' : ''}`}
+                    placeholder="Wallet Name"
+                    value={form.wallet_name}
+                    onChange={onChange}
+                    required
+                  />
+                  {fieldErrors.wallet_name && (
+                    <div className="invalid-feedback">{fieldErrors.wallet_name}</div>
+                  )}
+                </div>
+                <div className="mb-3">
+                  <input
+                    name="balance"
+                    type="number"
+                    step="0.0001"
+                    className={`form-control ${fieldErrors.balance ? 'is-invalid' : ''}`}
+                    placeholder="Balance"
+                    value={form.balance}
+                    onChange={onChange}
+                    required
+                  />
+                  {fieldErrors.balance && (
+                    <div className="invalid-feedback">{fieldErrors.balance}</div>
+                  )}
+                </div>
                 <button type="submit" className="btn btn-success w-100">
                   {editing ? 'Save Changes' : 'Add Wallet'}
                 </button>
