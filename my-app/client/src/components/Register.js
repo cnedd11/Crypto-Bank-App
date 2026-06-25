@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './../css/LoginRegister.css';
+import { PASSWORD_RE } from '../utils/validation';
 
 export default function Register() {
   const [email, setEmail]               = useState('');
@@ -14,7 +15,7 @@ export default function Register() {
 
   // OWASP A07: client-side complexity check (min 8 chars, upper, lower, digit, special).
   // The server enforces the same rule — this is a convenience hint only.
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+  const passwordRegex = PASSWORD_RE;
 
   const handleSubmit = async e => {
     e.preventDefault();

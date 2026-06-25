@@ -522,4 +522,15 @@ def handle_500(e):
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    if debug_mode:
+        logger.warning(
+            "Flask is running in DEBUG mode. Never enable this in production — "
+            "the interactive debugger exposes sensitive server internals."
+        )
+    # Also warn if the dev-only fallback secret key is still in use.
+    if app.config['SECRET_KEY'] == 'dev-only-replace-with-strong-env-var-in-production':
+        logger.warning(
+            "Using the default development SECRET_KEY. "
+            "Set the SECRET_KEY environment variable before deploying."
+        )
     app.run(debug=debug_mode)

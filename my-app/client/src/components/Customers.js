@@ -1,11 +1,7 @@
 // client/src/components/Customers.js
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-
-// Client-side email format check (mirrors the server-side rule).
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// Phone: digits, spaces, +, -, (, ) only.
-const PHONE_RE = /^[\d\s+\-(). ]{1,30}$/;
+import { EMAIL_RE, PHONE_RE } from '../utils/validation';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -29,6 +25,12 @@ export default function Customers() {
       .then(res => setCustomers(res.data))
       .catch(() => setError('Failed to load customers'));
   }, []);
+
+  // Reusable handler: update field value and clear its per-field error.
+  const handleFieldChange = (setter, field) => e => {
+    setter(e.target.value);
+    setFieldErrors(f => ({ ...f, [field]: '' }));
+  };
 
   // Client-side validation — returns an object of field → message.
   const validateCustomer = () => {
@@ -108,7 +110,7 @@ export default function Customers() {
                 className={`form-control ${fieldErrors.name ? 'is-invalid' : ''}`}
                 placeholder="Name"
                 value={name}
-                onChange={e => { setName(e.target.value); setFieldErrors(f => ({...f, name: ''})); }}
+                onChange={handleFieldChange(setName, 'name')}
                 required
               />
               {fieldErrors.name && (
@@ -121,7 +123,7 @@ export default function Customers() {
                 className={`form-control ${fieldErrors.email ? 'is-invalid' : ''}`}
                 placeholder="Email"
                 value={email}
-                onChange={e => { setEmail(e.target.value); setFieldErrors(f => ({...f, email: ''})); }}
+                onChange={handleFieldChange(setEmail, 'email')}
                 required
               />
               {fieldErrors.email && (
@@ -134,7 +136,7 @@ export default function Customers() {
                 className={`form-control ${fieldErrors.phone ? 'is-invalid' : ''}`}
                 placeholder="Phone (optional)"
                 value={phone}
-                onChange={e => { setPhone(e.target.value); setFieldErrors(f => ({...f, phone: ''})); }}
+                onChange={handleFieldChange(setPhone, 'phone')}
               />
               {fieldErrors.phone && (
                 <div className="invalid-feedback">{fieldErrors.phone}</div>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './../css/LoginRegister.css';
+import { EMAIL_RE } from '../utils/validation';
 
 export default function Login() {
   const [email, setEmail]         = useState('');
@@ -17,7 +18,7 @@ export default function Login() {
     setError('');
 
     // Client-side email format check before calling the server.
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!EMAIL_RE.test(email)) {
       setError('Please enter a valid email address');
       return;
     }
