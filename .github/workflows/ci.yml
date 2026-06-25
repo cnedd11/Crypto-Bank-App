@@ -1,0 +1,161 @@
+# ============================================================
+# CI Pipeline — Crypto Bank App
+# Runs on every push and pull request to any branch.
+# Two parallel jobs: backend (Python/Flask) and frontend (React).
+# This pipeline demonstrates core DevOps CI principles:
+#   - Automated testing on every code change
+#   - Static analysis / linting to enforce code quality
+#   - Security scanning to catch vulnerabilities early
+#   - Reproducible builds via dependency caching
+# ============================================================
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Restrict the default GITHUB_TOKEN to read-only access.
+# Individual jobs can override this if they need more permissions.
+permissions:
+  contents: read
+
+jobs:
+
+  # ------------------------------------------------------------
+  # BACKEND JOB
+  # Tests the Flask REST API using pytest, lints with flake8,
+  # and scans for security issues with bandit and pip-audit.
+  # A failure in any step fails the whole job (default behaviour).
+  # ------------------------------------------------------------
+  backend:
+    name: Backend (Python / Flask)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        # All steps run from the server directory so that
+        # "from server.app import ..." imports resolve correctly
+        # when pytest is invoked from my-app/
+        working-directory: my-app
+
+    steps:
+      # 1. Check out the source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install the requested Python version.
+      #    Python 3.11 is the latest stable release that Flask 3.x
+      #    is well-tested against.
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3. Cache pip's download cache keyed on requirements.txt.
+      #    On a cache hit the install step is much faster (no network
+      #    round-trips for already-downloaded wheels).
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('my-app/server/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4. Install all backend dependencies (non-interactive, strict).
+      #    --no-input ensures pip never pauses for user confirmation.
+      - name: Install Python dependencies
+        run: pip install --no-input -r server/requirements.txt
+
+      # 5. Run the test suite.
+      #    -v  → verbose output (each test name printed)
+      #    --tb=short → compact tracebacks on failure
+      #    pytest discovers tests in server/test_app.py automatically.
+      - name: Run pytest
+        run: pytest -v --tb=short server/test_app.py
+
+      # 6. Lint with flake8.
+      #    Enforces PEP 8 style and catches common coding errors.
+      #    --max-line-length=120 gives a little extra room for Flask routes.
+      #    A non-zero exit code from flake8 fails the job.
+      - name: Lint with flake8
+        run: |
+          flake8 server/app.py \
+            --max-line-length=120 \
+            --statistics
+
+      # 7. Security scan with bandit.
+      #    bandit performs static analysis to find common security
+      #    issues in Python code (e.g. use of assert, hardcoded passwords).
+      #    -ll  → report medium and high severity findings only
+      #    -r   → recursive scan
+      - name: Security scan with bandit
+        run: bandit -ll -r server/app.py
+
+      # 8. Dependency vulnerability scan with pip-audit.
+      #    pip-audit checks installed packages against the OSV and PyPI
+      #    advisory databases.  Any known CVE causes a non-zero exit.
+      - name: Dependency vulnerability scan with pip-audit
+        run: pip-audit -r server/requirements.txt
+
+  # ------------------------------------------------------------
+  # FRONTEND JOB
+  # Installs Node dependencies, runs React unit tests, then
+  # produces a production build to confirm nothing is broken.
+  # Runs in parallel with the backend job.
+  # ------------------------------------------------------------
+  frontend:
+    name: Frontend (React / Node)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: my-app/client
+
+    steps:
+      # 1. Check out the source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install Node 20 (LTS).  The setup-node action also configures
+      #    npm's cache path, which is used by the cache step below.
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 3. Cache node_modules keyed on package-lock.json.
+      #    Restoring the cache skips the npm install network round-trip
+      #    on unchanged dependencies.
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: my-app/client/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('my-app/client/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # 4. Install all JavaScript dependencies exactly as specified in
+      #    package-lock.json (ci = clean install, reproducible).
+      - name: Install Node dependencies
+        run: npm ci
+
+      # 5. Run the React unit tests.
+      #    CI=true  → disables the interactive watch mode and treats
+      #               any test warning as an error (React Scripts behaviour).
+      #    The job fails if any test fails.
+      - name: Run React tests
+        run: npm test -- --watchAll=false
+        env:
+          CI: "true"
+
+      # 6. Build the production bundle.
+      #    react-scripts build compiles and minifies the app.
+      #    GENERATE_SOURCEMAP=false speeds up the build in CI.
+      #    Failure here means the app cannot be deployed.
+      - name: Build production bundle
+        run: npm run build
+        env:
+          CI: "true"
+          GENERATE_SOURCEMAP: "false"
