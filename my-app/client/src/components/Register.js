@@ -98,7 +98,7 @@ export default function Register() {
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
                 <div className="invalid-feedback">
-                  Must be ≥8 chars, include upper, lower, number &amp; special.
+                  Must be ≥8 chars, include upper, lower, number & special.
                 </div>
               </div>
             </div>

@@ -3,6 +3,7 @@
 import re
 import os
 import time
+import threading
 import logging
 from collections import defaultdict
 from functools import wraps
@@ -76,8 +77,10 @@ with app.app_context():
 # OWASP A07 — Authentication Failures: brute-force login protection
 # ---------------------------------------------------------------------------
 # In-memory store: {email: {'count': int, 'locked_until': float}}
+# Protected by a lock to avoid race conditions under concurrent requests.
 # For production, replace with Redis or a persistent store.
 _failed_logins = defaultdict(lambda: {'count': 0, 'locked_until': 0.0})
+_failed_logins_lock = threading.Lock()
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_SECONDS = 300  # 5 minutes
 
@@ -86,8 +89,11 @@ LOCKOUT_SECONDS = 300  # 5 minutes
 # All DB access already uses SQLAlchemy ORM (parameterised), so this layer
 # provides defence-in-depth by rejecting obviously malicious payloads early.
 # ---------------------------------------------------------------------------
+# Single/double quotes are intentionally excluded from this pattern because
+# they appear legitimately in names (e.g. O'Neill) and SQLAlchemy ORM's parameterised
+# queries already prevent injection.  The pattern targets SQL operators and keywords.
 _SQL_INJECTION_RE = re.compile(
-    r"('|\"|--|;|/\*|\*/|xp_|union\s+select|select\s+\S+\s+from|"
+    r"(--|;|/\*|\*/|xp_|union\s+select|select\s+\S+\s+from|"
     r"insert\s+into|drop\s+table|or\s+1\s*=\s*1|and\s+1\s*=\s*1)",
     re.IGNORECASE
 )
@@ -108,6 +114,18 @@ def _is_strong_password(password: str) -> bool:
     """Return True if password satisfies complexity requirements."""
     return bool(_PASSWORD_RE.match(password))
 
+def _validate_balance(value, fallback=0.0):
+    """Parse and validate a wallet balance.
+
+    Returns (float, None) on success or (None, error_message) on failure.
+    """
+    try:
+        balance = float(value if value is not None else fallback)
+    except (TypeError, ValueError):
+        return None, 'Invalid balance value'
+    if balance < 0:
+        return None, 'Balance cannot be negative'
+    return balance, None
 
 # ---------------------------------------------------------------------------
 # OWASP A01 — Broken Access Control: reusable access-control decorators.
@@ -188,39 +206,42 @@ def login():
     email    = (data.get('email') or '').strip()
     password = data.get('password') or ''
 
-    now    = time.time()
-    record = _failed_logins[email]
+    now = time.time()
 
-    # OWASP A07: Enforce lockout before doing any credential check.
-    if record['locked_until'] > now:
-        remaining = int(record['locked_until'] - now)
-        logger.warning("Locked account login attempt for: %s", email)
-        return jsonify({
-            'error': f'Account temporarily locked. Try again in {remaining} seconds.'
-        }), 429
+    with _failed_logins_lock:
+        record = _failed_logins[email]
 
-    user = User.query.filter_by(email=email).first()
-    if not user or not check_password_hash(user.password, password):
-        record['count'] += 1
-        if record['count'] >= MAX_LOGIN_ATTEMPTS:
-            record['locked_until'] = now + LOCKOUT_SECONDS
-            record['count'] = 0
-            logger.warning("Account locked after repeated failures: %s", email)
+        # OWASP A07: Enforce lockout before doing any credential check.
+        if record['locked_until'] > now:
+            remaining = int(record['locked_until'] - now)
+            logger.warning("Locked account login attempt for: %s", email)
             return jsonify({
-                'error': (
-                    f'Too many failed attempts. '
-                    f'Account locked for {LOCKOUT_SECONDS // 60} minutes.'
-                )
+                'error': f'Account temporarily locked. Try again in {remaining} seconds.'
             }), 429
-        logger.warning(
-            "Failed login attempt %d/%d for: %s",
-            record['count'], MAX_LOGIN_ATTEMPTS, email
-        )
-        return jsonify({'error': 'Invalid credentials'}), 401
 
-    # Successful login: reset the failure counter.
-    record['count'] = 0
-    record['locked_until'] = 0.0
+        user = User.query.filter_by(email=email).first()
+        if not user or not check_password_hash(user.password, password):
+            record['count'] += 1
+            if record['count'] >= MAX_LOGIN_ATTEMPTS:
+                record['locked_until'] = now + LOCKOUT_SECONDS
+                record['count'] = 0
+                logger.warning("Account locked after repeated failures: %s", email)
+                return jsonify({
+                    'error': (
+                        f'Too many failed attempts. '
+                        f'Account locked for {LOCKOUT_SECONDS // 60} minutes.'
+                    )
+                }), 429
+            logger.warning(
+                "Failed login attempt %d/%d for: %s",
+                record['count'], MAX_LOGIN_ATTEMPTS, email
+            )
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        # Successful login: reset the failure counter.
+        record['count'] = 0
+        record['locked_until'] = 0.0
+
     session['user_id'] = user.id
     logger.info("Successful login: %s", email)
     return jsonify({'message': 'Login successful'}), 200
@@ -354,12 +375,9 @@ def add_wallet():
     if not cust:
         return jsonify({'error': 'Customer not found'}), 404
 
-    try:
-        balance = float(data.get('balance', 0.0))
-        if balance < 0:
-            return jsonify({'error': 'Balance cannot be negative'}), 400
-    except (TypeError, ValueError):
-        return jsonify({'error': 'Invalid balance value'}), 400
+    balance, err = _validate_balance(data.get('balance'), fallback=0.0)
+    if err:
+        return jsonify({'error': err}), 400
 
     wallet = CryptoWallet(wallet_name=wallet_name, balance=balance, customer_id=cust_id)
     db.session.add(wallet)
@@ -390,12 +408,9 @@ def update_wallet(id):
         )
         return jsonify({'error': 'Invalid input'}), 400
 
-    try:
-        new_balance = float(data.get('balance', wallet.balance))
-        if new_balance < 0:
-            return jsonify({'error': 'Balance cannot be negative'}), 400
-    except (TypeError, ValueError):
-        return jsonify({'error': 'Invalid balance value'}), 400
+    new_balance, err = _validate_balance(data.get('balance'), fallback=wallet.balance)
+    if err:
+        return jsonify({'error': err}), 400
 
     wallet.wallet_name = new_name
     wallet.balance     = new_balance
@@ -423,4 +438,5 @@ def delete_wallet(id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode)

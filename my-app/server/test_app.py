@@ -164,9 +164,13 @@ def test_self_registration_cannot_assign_admin_role(client):
 # OWASP A03 — SQL Injection: injection patterns must be rejected
 # ---------------------------------------------------------------------------
 def test_sql_injection_blocked_in_register_email(client):
-    """SQL injection pattern in email field must return 400."""
+    """SQL injection keywords in email field must return 400.
+
+    Note: single quotes alone are not blocked (O'Brien is a valid name);
+    the check targets SQL operators and keywords such as OR 1=1 and --.
+    """
     rv = client.post("/api/register", json={
-        "email": "a' OR '1'='1",
+        "email": "a OR 1=1 --",
         "password": STRONG_PW,
     })
     assert rv.status_code == 400
