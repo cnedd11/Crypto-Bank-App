@@ -1,4 +1,5 @@
 import logging
+import os
 
 from flask import Flask
 from flask_cors import CORS
@@ -42,7 +43,10 @@ def create_app(test_config=None):
     app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
     app.config.setdefault('SESSION_COOKIE_SECURE', False)
 
-    CORS(app, supports_credentials=True)
+    # Allow the configured frontend origin (all origins permitted when unset,
+    # which is safe for local development and CI).
+    frontend_url = os.environ.get('FRONTEND_URL', '*')
+    CORS(app, supports_credentials=True, origins=frontend_url)
     db.init_app(app)
 
     with app.app_context():
