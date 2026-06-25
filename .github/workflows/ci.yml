@@ -1,12 +1,23 @@
+# CI Pipeline for Crypto Bank App
+# ─────────────────────────────────────────────────────────────────────────────
+# This workflow automates quality gates on every push and pull request.
+# It supports core DevOps CI principles: fast feedback, consistent environments,
+# and automated enforcement of code quality and security standards.
+# ─────────────────────────────────────────────────────────────────────────────
 name: CI
 
 on:
+  # Run on every push to any branch so issues are caught early
   push:
-    branches: [main]
+  # Run on every pull request so reviewers see pass/fail before merging
   pull_request:
-    branches: [main]
 
 jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # BACKEND JOB
+  # Validates the Flask/Python application.
+  # Steps: install → lint → security scan → dependency audit → unit tests
+  # ───────────────────────────────────────────────────────────────────────────
   backend:
     name: Backend (Python)
     runs-on: ubuntu-latest
@@ -14,28 +25,68 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      # Check out the repository so the workflow can access its files
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      # Install the correct Python version; pinning ensures reproducible builds
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
 
+      # Cache pip's download cache keyed on requirements.txt.
+      # On a cache hit the install step skips re-downloading packages,
+      # significantly reducing job run time (DevOps principle: fast feedback).
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Install all backend dependencies (including dev/test tools).
+      # pip install is non-interactive and exits non-zero on failure.
       - name: Install dependencies
         working-directory: backend
         run: pip install -r requirements.txt
 
-      - name: Lint (flake8)
+      # Lint with flake8 to enforce PEP 8 style and catch obvious errors.
+      # max-line-length matches the project's .flake8 config.
+      # A non-zero exit code stops the job immediately (fail-fast behaviour).
+      - name: Lint with flake8
         working-directory: backend
         run: flake8 app/ --max-line-length=120
 
-      - name: Security scan (bandit)
+      # Run bandit, a static analysis tool for common Python security issues
+      # (e.g. hardcoded passwords, use of insecure functions).
+      # -ll reports medium-and-above severity issues and fails the job if any
+      # are found, enforcing security-as-code in the pipeline.
+      - name: Security scan with bandit
         working-directory: backend
         run: bandit -r app/ -ll
 
-      - name: Run tests
+      # Run pip-audit to check installed packages against known CVE databases.
+      # This catches vulnerable third-party dependencies before they reach
+      # production — a key supply-chain security practice.
+      - name: Dependency vulnerability scan with pip-audit
         working-directory: backend
-        run: pytest -q
+        run: pip-audit
 
+      # Run the pytest suite. pytest exits non-zero on any test failure,
+      # which marks the entire job (and workflow) as failed.
+      # -v gives verbose output so failures are easy to read in the logs.
+      - name: Run tests with pytest
+        working-directory: backend
+        run: pytest -v
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # FRONTEND JOB
+  # Validates the React application.
+  # Steps: install → unit tests → lint → production build
+  # Runs in parallel with the backend job for faster overall feedback.
+  # ───────────────────────────────────────────────────────────────────────────
   frontend:
     name: Frontend (Node)
     runs-on: ubuntu-latest
@@ -43,24 +94,47 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      # Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      # Install Node 20 (LTS). The built-in cache option stores node_modules
+      # in GitHub's cache keyed on package-lock.json, avoiding a full
+      # npm install on every run (faster CI, lower network usage).
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      # npm ci (clean install) is the CI-preferred alternative to npm install.
+      # It installs exact versions from package-lock.json and fails if the
+      # lockfile is out of sync — ensuring reproducible, deterministic builds.
       - name: Install dependencies
         working-directory: frontend
         run: npm ci --legacy-peer-deps
 
-      - name: Lint (ESLint)
+      # Run the Jest test suite. react-scripts test exits non-zero on failure.
+      # CI=true disables the interactive watch mode so the command runs once
+      # and exits, which is required in a non-interactive CI environment.
+      - name: Run tests
         working-directory: frontend
-        run: npm run lint || true
+        run: npm test
+        env:
+          CI: true
 
-      - name: Build
+      # Lint with ESLint to enforce code style and catch potential bugs.
+      # Linting failures exit non-zero and stop the job (fail-fast).
+      - name: Lint with ESLint
+        working-directory: frontend
+        run: npm run lint
+
+      # Produce a production build to verify the app compiles without errors.
+      # CI=true makes react-scripts treat warnings as errors, ensuring build
+      # quality is enforced the same way as in a real production deployment.
+      - name: Build production bundle
         working-directory: frontend
         run: npm run build
         env:
-          CI: false
+          CI: true
