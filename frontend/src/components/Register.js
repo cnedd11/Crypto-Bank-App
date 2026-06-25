@@ -1,0 +1,119 @@
+// client/src/Register.js
+import { useState } from 'react';
+import axios from 'axios';
+import { useNavigate, Link } from 'react-router-dom';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './../css/LoginRegister.css';
+import { PASSWORD_RE } from '../utils/validation';
+
+export default function Register() {
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError]               = useState('');
+  const navigate = useNavigate();
+
+  // OWASP A07: client-side complexity check (min 8 chars, upper, lower, digit, special).
+  // The server enforces the same rule — this is a convenience hint only.
+  const passwordRegex = PASSWORD_RE;
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+
+    if (!passwordRegex.test(password)) {
+      setError(
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.'
+      );
+      return;
+    }
+
+    try {
+      // 1. Register — role is always assigned server-side ('user').
+      await axios.post(
+        '/api/register',
+        { email, password },
+        { withCredentials: true }
+      );
+
+      // 2. Immediately log in
+      await axios.post(
+        '/api/login',
+        { email, password },
+        { withCredentials: true }
+      );
+
+      // 3. Redirect home and reload so Navbar updates
+      navigate('/');
+      window.location.reload();
+    } catch (err) {
+      setError(err.response?.data.error || 'Registration failed');
+    }
+  };
+
+  return (
+    <div className="auth-wrapper">
+      <div className="card shadow-sm auth-card">
+        <div className="card-body">
+          <h2 className="text-center auth-title">Register</h2>
+
+          {error && (
+            <div className="alert alert-danger auth-error" role="alert">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            {/* Email */}
+            <div className="mb-3">
+              <label htmlFor="email" className="form-label">Email</label>
+              <input
+                id="email"
+                type="email"
+                className="form-control"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Password with show/hide toggle */}
+            <div className="mb-4">
+              <label htmlFor="password" className="form-label">Password</label>
+              <div className="input-group">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  className={`form-control ${password && !passwordRegex.test(password) ? 'is-invalid' : ''}`}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowPassword(s => !s)}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+                <div className="invalid-feedback">
+                  Must be ≥8 chars, include upper, lower, number & special.
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary w-100">
+              Sign Up
+            </button>
+          </form>
+
+          <div className="text-center mt-3">
+            Already have an account? <Link to="/login">Login</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
