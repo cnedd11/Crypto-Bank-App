@@ -31,7 +31,7 @@ services:
       - key: DATABASE_URL
         value: sqlite:///crypto_bank.db
       - key: FLASK_DEBUG
-        value: false
+        value: 'false'
       # Set to the frontend static-site URL after first deploy (see note above).
       # Example: https://crypto-bank-frontend.onrender.com
       - key: FRONTEND_URL

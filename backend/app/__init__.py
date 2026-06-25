@@ -43,9 +43,10 @@ def create_app(test_config=None):
     app.config.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
     app.config.setdefault('SESSION_COOKIE_SECURE', False)
 
-    # Allow the configured frontend origin (all origins permitted when unset,
-    # which is safe for local development and CI).
-    frontend_url = os.environ.get('FRONTEND_URL', '*')
+    # Allow requests from the configured frontend origin.
+    # Defaults to localhost:3000 for local development.
+    # Set FRONTEND_URL to the deployed frontend URL (e.g. on Render) in production.
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
     CORS(app, supports_credentials=True, origins=frontend_url)
     db.init_app(app)
 

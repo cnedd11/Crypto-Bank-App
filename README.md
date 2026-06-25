@@ -210,7 +210,7 @@ GitHub (main branch)
 ```bash
 # 1. Push the repository to GitHub (the main branch).
 # 2. Visit https://dashboard.render.com → New → Blueprint.
-# 3. Select the cnedd11/Crypto-Bank-App repository.
+# 3. Select your forked/cloned repository.
 # 4. Render reads render.yaml and creates both services.
 # 5. After the first successful deploy, copy each service's public URL and
 #    set the cross-service env vars in the Render dashboard:
