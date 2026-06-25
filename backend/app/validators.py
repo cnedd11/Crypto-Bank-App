@@ -23,7 +23,7 @@ _EMAIL_RE = re.compile(
 )
 
 # Phone: optional field; allows digits, spaces, +, -, (, ) up to 30 chars.
-_PHONE_RE = re.compile(r'^[\d\s+\-(). ]{1,30}$')
+_PHONE_RE = re.compile(r'^[\d\s+\-().]{1,30}$')
 
 
 def contains_sql_injection(value: str) -> bool:

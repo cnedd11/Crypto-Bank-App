@@ -6,7 +6,7 @@
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Phone: optional field; allows digits, spaces, +, -, (, ) — up to 30 chars. */
-export const PHONE_RE = /^[\d\s+\-(). ]{1,30}$/;
+export const PHONE_RE = /^[\d\s+\-().]{1,30}$/;
 
 /**
  * OWASP A07: Password complexity rule that mirrors the server-side check.
