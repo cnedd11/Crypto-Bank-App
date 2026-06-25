@@ -15,6 +15,11 @@ on:
   push:
   pull_request:
 
+# Restrict the default GITHUB_TOKEN to read-only access.
+# Individual jobs can override this if they need more permissions.
+permissions:
+  contents: read
+
 jobs:
 
   # ------------------------------------------------------------
